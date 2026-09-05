@@ -27,6 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node.js (with npm cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
       - name: Fetch latest versions from npm
         id: versions
         run: |
@@ -111,6 +117,9 @@ jobs:
           build-args: |
             OMPWEB_VERSION=${{ needs.check.outputs.ompweb_version }}
             OMP_VERSION=${{ needs.check.outputs.omp_version }}
+          # GitHub Actions cache: reuse layers between runs (free, per-repo)
+          # mode=max caches ALL layers, not just the final one — so apt/nodejs/
+          # bun/omp layers are reused even when the npm install layer changes.
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
