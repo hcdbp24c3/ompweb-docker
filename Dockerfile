@@ -9,6 +9,7 @@ FROM debian:stable
 
 # --- Build args (injected by CI; default to latest) ---
 ARG OMPWEB_VERSION=latest
+ARG OMP_VERSION=latest
 
 # --- User / working dir ---
 USER root
@@ -45,7 +46,13 @@ RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:${PATH}"
 
 # --- Oh-My-Pi coding agent (official install script) ---
-RUN curl -fsSL https://omp.sh/install | sh
+# Pin exact version via --binary --ref v<version> when OMP_VERSION is set;
+# otherwise install latest.
+RUN if [ "${OMP_VERSION}" != "latest" ]; then \
+        curl -fsSL https://omp.sh/install | sh -s -- --binary --ref "v${OMP_VERSION}"; \
+    else \
+        curl -fsSL https://omp.sh/install | sh; \
+    fi
 
 # --- ompweb (global install via npm) ---
 RUN npm install -g @kahme247/ompweb@${OMPWEB_VERSION}

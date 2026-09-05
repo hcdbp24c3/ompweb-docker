@@ -22,36 +22,43 @@ jobs:
     outputs:
       changed: ${{ steps.compare.outputs.changed }}
       ompweb_version: ${{ steps.versions.outputs.ompweb_version }}
+      omp_version: ${{ steps.versions.outputs.omp_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fetch latest version from npm
+      - name: Fetch latest versions from npm
         id: versions
         run: |
           OMPWEB=$(npm view @kahme247/ompweb version)
+          OMP=$(npm view @oh-my-pi/pi-coding-agent version)
           echo "ompweb_version=$OMPWEB" >> "$GITHUB_OUTPUT"
+          echo "omp_version=$OMP" >> "$GITHUB_OUTPUT"
           echo "Latest ompweb: $OMPWEB"
+          echo "Latest omp:    $OMP"
 
-      - name: Compare with last built version
+      - name: Compare with last built versions
         id: compare
         run: |
           FORCE="${{ github.event.inputs.force }}"
           OMPWEB="${{ steps.versions.outputs.ompweb_version }}"
+          OMP="${{ steps.versions.outputs.omp_version }}"
 
-          # Read last-built version from committed VERSIONS file (if present)
+          # Read last-built versions from committed VERSIONS file (if present)
           LAST_OMPWEB=""
+          LAST_OMP=""
           if [ -f VERSIONS ]; then
             LAST_OMPWEB=$(grep -E '^OMPWEB=' VERSIONS | cut -d= -f2 || true)
+            LAST_OMP=$(grep -E '^OMP=' VERSIONS | cut -d= -f2 || true)
           fi
 
-          echo "Last built: ompweb=$LAST_OMPWEB"
-          echo "Latest:     ompweb=$OMPWEB"
+          echo "Last built: ompweb=$LAST_OMPWEB, omp=$LAST_OMP"
+          echo "Latest:     ompweb=$OMPWEB, omp=$OMP"
 
           if [ "$FORCE" = "true" ]; then
             echo "Force rebuild requested."
             echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif [ "$OMPWEB" != "$LAST_OMPWEB" ]; then
+          elif [ "$OMPWEB" != "$LAST_OMPWEB" ] || [ "$OMP" != "$LAST_OMP" ]; then
             echo "New version detected."
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
@@ -103,17 +110,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             OMPWEB_VERSION=${{ needs.check.outputs.ompweb_version }}
+            OMP_VERSION=${{ needs.check.outputs.omp_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Record built version
+      - name: Record built versions
         run: |
-          printf 'OMPWEB=%s\n' \
-            "${{ needs.check.outputs.ompweb_version }}" > VERSIONS
+          printf 'OMPWEB=%s\nOMP=%s\n' \
+            "${{ needs.check.outputs.ompweb_version }}" \
+            "${{ needs.check.outputs.omp_version }}" > VERSIONS
           cat VERSIONS
 
       - name: Commit updated VERSIONS
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: bump built version to ompweb ${{ needs.check.outputs.ompweb_version }}"
+          commit_message: "chore: bump built versions to ompweb ${{ needs.check.outputs.ompweb_version }} / omp ${{ needs.check.outputs.omp_version }}"
           file_pattern: VERSIONS
